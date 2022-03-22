@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <title>聊天室</title>
+    <!-- 引入 layui.css -->
+    <link rel="stylesheet" href="./css/chat.css">
+</head>
+<body>
+
+<div class="login">
+    <input type="text" class="nickname" id="nickname" placeholder="请输入昵称">
+    <input type="button" value="进入聊天室" class="layui-btn" onclick="login()">
+</div>
+
+<div class="container hide">
+    <div class="content">
+        <!--        <div class="item item-center"><span>昨天 12:35</span></div>-->
+        <!--        <div class="item item-center"><span>你已添加了凡繁烦，现在可以开始聊天了。</span></div>-->
+<!--                <div class="item item-left">-->
+<!--                    <div class="avatar">-->
+<!--                        <img src="images/1.png"/>-->
+<!--                        <span>忠忠</span>-->
+<!--                    </div>-->
+<!--                    <div class="bubble bubble-left">-->
+<!--                        您好,我在武汉，你可以直接送过来吗，我有时间的话，可以自己过去拿<br/>！！！<br/>123-->
+<!--                    </div>-->
+<!--                </div>-->
+
+        <!--        <div class="item item-right">-->
+        <!--            <div class="bubble bubble-right">-->
+        <!--                hello<br/>你好呀-->
+        <!--            </div>-->
+        <!--            <div class="avatar">-->
+        <!--                <img src="https://ss3.bdstatic.com/70cFv8Sh_Q1YnxGkpoWK1HF6hhy/it/u=3313909130,2406410525&fm=15&gp=0.jpg"/>-->
+        <!--                <span>忠忠</span>-->
+        <!--            </div>-->
+        <!--        </div>-->
+    </div>
+    <div class="input-area">
+        <input type="text" name="text" id="msg" class="msg-content">
+        <div class="button-area">
+            <button id="send-btn" onclick="sendMsg()">发 送</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- 引入 layui.js -->
+<script src="./js/jquery.js"></script>
+<script>
+    var wsServer = 'ws://150.158.149.196:9502';
+    var websocket = new WebSocket(wsServer);
+    var fd;
+    var avatar;
+
+    websocket.onopen = function (evt) {
+        console.log("Connected to WebSocket server.");
+    };
+
+    websocket.onclose = function (evt) {
+        console.log("Disconnected");
+    };
+
+    websocket.onmessage = function (evt) {
+
+        var response = JSON.parse(evt.data);
+
+        switch (response.type) {
+            case 'open' :
+                fd = response.fd;
+                break;
+            case 'login' :
+                if (fd == response.fd) {
+                    avatar = response.avatar;
+                } else {
+                    $(".content").append(`<div class="item item-center"><span>${response.content}</span></div>`)
+                }
+                break;
+            case 'chat' :
+                var html;
+                if (fd == response.fd) {
+                    html = `<div class="item item-right">
+                                <div class="bubble bubble-right">
+                                    ${response.content}
+                                </div>
+                                <div class="avatar">
+                                    <img src="${response.avatar}"/>
+                                    <span>${response.nickname}</span>
+                                </div>
+                            </div>`
+                } else {
+                    html = `<div class="item item-left">
+                                <div class="avatar">
+                                    <img src="${response.avatar}"/>
+                                    <span>${response.nickname}</span>
+                                </div>
+                                <div class="bubble bubble-left">
+                                    ${response.content}
+                                </div>
+                            </div>`
+                }
+
+                if (html) {
+                    $(".content").append(html);
+                }
+
+                break;
+
+        }
+        // console.log('Retrieved data from server: ' + evt.data);
+    };
+
+    websocket.onerror = function (evt, e) {
+        console.log('Error occured: ' + evt.data);
+    };
+
+    function sendMsg() {
+        var msg = $('#msg').val();
+
+        if (msg.length == 0) {
+            alert('输入内容不能为空');
+            return false;
+        }
+
+        send('chat', msg);
+    }
+
+    function login() {
+        nickname = $('#nickname').val();
+
+        if (nickname.length == 0) {
+            alert('昵称必须填写');
+            return false;
+        }
+
+        $('.login').addClass('hide');
+        $('.container').removeClass('hide');
+
+        send('login', nickname);
+
+    }
+
+    function send(type, msg) {
+
+        var message = {};
+
+        switch (type) {
+
+            case 'login' :
+                message.type = type;
+                message.msg = msg;
+
+                websocket.send(JSON.stringify(message));
+
+                break;
+            case 'chat' :
+                message.type = type;
+                message.msg = msg;
+                message.nickname = nickname;
+                message.avatar = avatar;
+
+                websocket.send(JSON.stringify(message));
+
+                break;
+        }
+    }
+</script>
+</body>
+</html>
